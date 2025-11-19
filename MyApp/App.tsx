@@ -1,51 +1,53 @@
 import * as React from 'react';
-import { Alert, Button, Pressable, StatusBar, StyleSheet, useColorScheme } from 'react-native';
+import { StatusBar, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createNativeStackNavigator, NativeStackScreenProps } from '@react-navigation/native-stack';
 import NotesList from './screens/notes-list';
 import NoteDetails from './screens/note-details';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import CreateNote from './screens/create-note';
+import { getTheme } from './theme';
 
 type RootStackParamList = {
   Notes: undefined;
-  NoteDetail: { id: number }
+  NoteDetail: { id: string }
+  CreateNote: undefined
 };
 
-type Props = NativeStackScreenProps<RootStackParamList, 'NoteDetail'>;
+type NoteDetailProps = NativeStackScreenProps<RootStackParamList, 'NoteDetail'>;
+type NoteListProps = NativeStackScreenProps<RootStackParamList, 'Notes'>;
 
-export type NoteDetailNavigationProp = Props['navigation']
+export type NoteDetailNavigationProp = NoteDetailProps['navigation']
+export type NoteListNavigationProp = NoteListProps['navigation']
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 export default function App() {
   const isDarkMode = useColorScheme() === 'dark';
+  const theme = getTheme(isDarkMode ? 'dark' : 'light');
 
   return (
     <SafeAreaProvider>
       <NavigationContainer>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <Stack.Navigator>
-          <Stack.Screen
-            name='Notes'
-            component={NotesList}
-            options={{
-              headerRight: () => <Pressable onPress={() => Alert.alert('Created!')} style={styles.iconButton}>
-                <Ionicons name='add' size={24} color='#fff' />
-              </Pressable>
-            }}
-          />
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: theme.colors.surface },
+            headerTitleStyle: { color: theme.colors.text },
+            headerTintColor: theme.colors.text,
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+        >
+          <Stack.Screen name='Notes' component={NotesList} />
           <Stack.Screen name='NoteDetail' component={NoteDetails} />
+          <Stack.Screen name='CreateNote' component={CreateNote} options={{
+            title: 'Create Note'
+          }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  iconButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 20,
-    padding: 8
-  },
-});
+// no component-level styles currently

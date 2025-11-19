@@ -1,63 +1,75 @@
 import { useNavigation } from "@react-navigation/native"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { ColorSchemeName, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native"
+import { useMemo } from "react";
 import { NoteDetailNavigationProp } from "../App"
+import { Note } from "../notes-store";
+import { getTheme } from "../theme";
 
-export type Item = {
-  id: number
-  title: string
-  description: string
-  tags: string[]
-}
-
-export default function Card({ item }: { item: Item }) {
+export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?: ColorSchemeName }) {
   const navigation = useNavigation<NoteDetailNavigationProp>();
+  const systemScheme = useColorScheme();
+  const scheme = schemeProp ?? systemScheme;
+  const theme = getTheme(scheme);
 
-  return <Pressable
-    style={styles.card}
-    onPress={() => navigation.navigate("NoteDetail", { id: item.id })}
-  >
-    <Text style={styles.title}>{item.title}</Text>
-    <Text style={styles.description}>{item.description}</Text>
-    <View style={styles.tagContainer}>
-      {item.tags.map((v, i) =>
-        <Text key={i} style={styles.tag}>{v}</Text>
+  const styles = useMemo(() => StyleSheet.create({
+    card: {
+      marginHorizontal: 6,
+      padding: 14,
+      marginVertical: 8,
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      shadowColor: theme.shadow.shadowColor,
+      shadowOpacity: theme.shadow.shadowOpacity,
+      shadowRadius: theme.shadow.shadowRadius,
+      shadowOffset: theme.shadow.shadowOffset,
+      elevation: theme.shadow.elevation,
+    },
+    title: {
+      fontWeight: "700",
+      fontSize: 16,
+      marginBottom: 6,
+      color: theme.colors.text,
+    },
+    description: {
+      color: theme.colors.subtext,
+      marginBottom: 10,
+      lineHeight: 20,
+    },
+    tagContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    tag: {
+      backgroundColor: theme.colors.chipBg,
+      color: theme.colors.subtext,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      marginRight: 6,
+      marginBottom: 6,
+      fontSize: 12,
+    },
+  }), [theme]);
+
+  return (
+    <Pressable
+      style={styles.card}
+      android_ripple={{ color: theme.colors.border }}
+      accessibilityRole="button"
+      accessibilityLabel={`Open note ${item.title}`}
+      onPress={() => navigation.navigate("NoteDetail", { id: item.id })}
+    >
+      <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
+      {!!item.description && (
+        <Text style={styles.description} numberOfLines={3} ellipsizeMode="tail">{item.description}</Text>
       )}
-    </View>
-  </Pressable>
+      {item.tags?.length ? (
+        <View style={styles.tagContainer}>
+          {item.tags.map((v, i) => (
+            <Text key={i} style={styles.tag}>{v}</Text>
+          ))}
+        </View>
+      ) : null}
+    </Pressable>
+  )
 }
-
-const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: 6,
-    padding: 12,
-    marginVertical: 8,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  title: {
-    fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  description: {
-    color: "gray",
-    marginBottom: 8,
-  },
-  tagContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  tag: {
-    backgroundColor: "#eee",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 6,
-    marginBottom: 4,
-    fontSize: 12,
-  },
-});
