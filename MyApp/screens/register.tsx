@@ -67,7 +67,7 @@ export default function RegisterScreen() {
           {registerMutation.isPending ? "Creating account..." : "Create Account"}
         </Text>
       </Pressable>
-      <Pressable onPress={() => navigation.navigate("Login")}>
+      <Pressable onPress={() => navigation.goBack()}>
         <Text style={styles(theme).link}>Already have an account? Login</Text>
       </Pressable>
     </View>

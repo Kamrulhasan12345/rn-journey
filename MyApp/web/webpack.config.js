@@ -27,8 +27,13 @@ module.exports = {
       {
         test: /\.(js|jsx)$/,
         include: [
-          path.resolve(__dirname, '../'),
+          path.resolve(__dirname, '..'),
           /node_modules\/react-native-/,
+          /node_modules\/@react-navigation\//,
+          /node_modules\/@tanstack\//,
+          /node_modules\/axios\//,
+          /node_modules\/uuid\//,
+          /node_modules\/@react-native-vector-icons\//,
         ],
         use: {
           loader: 'babel-loader',
@@ -37,6 +42,8 @@ module.exports = {
               'module:@react-native/babel-preset',
               '@babel/preset-react',
             ],
+            babelrc: false,
+            configFile: false,
           },
         },
       },

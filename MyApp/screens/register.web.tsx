@@ -4,20 +4,21 @@ import { Link } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
 import { getTheme } from "../theme";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { loginMutation } = useAuth();
+  const { registerMutation } = useAuth();
 
   const onSubmit = () => {
-    if (loginMutation.isPending) return;
-    loginMutation.mutate(
-      { email, password },
+    if (registerMutation.isPending) return;
+    registerMutation.mutate(
+      { name, email, password },
       {
         onError: (err: any) => {
-          Alert.alert("Login failed", err?.message ?? "Unknown error");
+          Alert.alert("Registration failed", err?.message ?? "Unknown error");
         },
       },
     );
@@ -25,7 +26,13 @@ export default function LoginScreen() {
 
   return (
     <View style={styles(theme).container}>
-      <Text style={styles(theme).title}>Login</Text>
+      <Text style={styles(theme).title}>Register</Text>
+      <TextInput
+        style={styles(theme).input}
+        placeholder="Name"
+        value={name}
+        onChangeText={setName}
+      />
       <TextInput
         style={styles(theme).input}
         placeholder="Email"
@@ -42,17 +49,17 @@ export default function LoginScreen() {
         onChangeText={setPassword}
       />
       <Pressable
-        style={[styles(theme).button, loginMutation.isPending && styles(theme).buttonDisabled]}
+        style={[styles(theme).button, registerMutation.isPending && styles(theme).buttonDisabled]}
         onPress={onSubmit}
-        disabled={loginMutation.isPending}
+        disabled={registerMutation.isPending}
       >
         <Text style={styles(theme).buttonText}>
-          {loginMutation.isPending ? "Logging in..." : "Login"}
+          {registerMutation.isPending ? "Creating account..." : "Create Account"}
         </Text>
       </Pressable>
       <Pressable style={styles(theme).link}>
-        <Link screen='Register' params={{}}>
-          <Text>Don't have an account? Register</Text>
+        <Link screen='Login' params={{}}>
+          <Text>Already have an account? Login</Text>
         </Link>
       </Pressable>
     </View>

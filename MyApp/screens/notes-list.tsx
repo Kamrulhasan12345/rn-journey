@@ -6,15 +6,13 @@ import { storage } from "../storage";
 import { useColorScheme, View, Text, Pressable, StyleSheet } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { useNavigation } from "@react-navigation/native";
-import { NoteListNavigationProp } from "../App";
+import { Link } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
 
 export default function NotesList() {
   const [notes, setNotes] = useState<Note[]>(() => getAllNotes());
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
-  const navigation = useNavigation<NoteListNavigationProp>();
   const { logoutMutation } = useAuth();
 
   useEffect(() => {
@@ -62,12 +60,13 @@ export default function NotesList() {
       />
 
       <Pressable
-        onPress={() => navigation.navigate("CreateNote")}
         style={styles(theme).fab}
         accessibilityRole="button"
         accessibilityLabel="Add note"
       >
-        <Ionicons name="add" size={28} color="#fff" />
+        <Link screen='CreateNote' params={{}}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </Link>
       </Pressable>
     </View>
   );
@@ -76,19 +75,19 @@ export default function NotesList() {
 function EmptyState() {
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
-  const navigation = useNavigation<NoteListNavigationProp>();
   return (
     <View style={styles(theme).emptyWrap}>
       <Text style={styles(theme).emptyTitle}>No notes yet</Text>
       <Text style={styles(theme).emptySub}>Create your first note to get started.</Text>
       <Pressable
-        onPress={() => navigation.navigate("CreateNote")}
         style={styles(theme).cta}
         accessibilityRole="button"
         accessibilityLabel="Create note"
       >
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={styles(theme).ctaText}>Create Note</Text>
+        <Link screen='CreateNote' params={{}}>
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles(theme).ctaText}>Create Note</Text>
+        </Link>
       </Pressable>
     </View>
   );
