@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 
 // API base URL (custom domain, no localhost). Override per env/build as needed.
-export const API_BASE_URL = "https://special-bassoon-q9wjw45r59h57j-4000.app.github.dev/";
+export const API_BASE_URL = "https://notenen.onrender.com/";
 
 // x-client-platform is required by backend to decide where refreshToken lives.
 // For React Native Web, Platform.OS will be 'web'.
