@@ -23,11 +23,12 @@ export default function RegisterScreen() {
   const navigation = useNavigation<RegisterNav>();
 
   const onSubmit = () => {
+    if (registerMutation.isPending) return;
     registerMutation.mutate(
       { name, email, password },
       {
         onError: (err: any) => {
-          Alert.alert("Registration failed", err?.response?.data?.error ?? "Unknown error");
+          Alert.alert("Registration failed", err?.message ?? "Unknown error");
         },
       },
     );
@@ -57,8 +58,14 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
       />
-      <Pressable style={styles(theme).button} onPress={onSubmit}>
-        <Text style={styles(theme).buttonText}>Create Account</Text>
+      <Pressable
+        style={[styles(theme).button, registerMutation.isPending && styles(theme).buttonDisabled]}
+        onPress={onSubmit}
+        disabled={registerMutation.isPending}
+      >
+        <Text style={styles(theme).buttonText}>
+          {registerMutation.isPending ? "Creating account..." : "Create Account"}
+        </Text>
       </Pressable>
       <Pressable onPress={() => navigation.navigate("Login")}>
         <Text style={styles(theme).link}>Already have an account? Login</Text>
@@ -87,6 +94,9 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 10,
       alignItems: "center",
       marginTop: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.7,
     },
     buttonText: { color: "#fff", fontWeight: "700" },
     link: { marginTop: 16, color: theme.colors.primary },

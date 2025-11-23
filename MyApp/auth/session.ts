@@ -1,8 +1,4 @@
-import { storage } from "../storage";
-
-const ACCESS_TOKEN_KEY = "auth:accessToken";
-const REFRESH_TOKEN_KEY = "auth:refreshToken";
-const USER_KEY = "auth:user";
+import { clearSessionStorage, readSessionFromStorage, writeSessionToStorage } from "./token-storage";
 
 export type AuthUser = {
   id: string;
@@ -17,44 +13,42 @@ export type SessionState = {
 };
 
 let inMemoryAccessToken: string | null = null;
+let cachedSession: SessionState | null = null;
+
+export const readSession = async (): Promise<SessionState> => {
+  const session = await readSessionFromStorage();
+  cachedSession = session;
+  return session;
+};
+
+export const hydrateAccessTokenFromStorage = async (): Promise<void> => {
+  const session = await readSession();
+  inMemoryAccessToken = session.accessToken;
+};
 
 export const getSession = (): SessionState => {
-  const accessToken = storage.getString(ACCESS_TOKEN_KEY) ?? null;
-  const refreshToken = storage.getString(REFRESH_TOKEN_KEY) ?? null;
-  const userJson = storage.getString(USER_KEY);
-  const user = userJson ? (JSON.parse(userJson) as AuthUser) : null;
-
-  inMemoryAccessToken = accessToken;
-
-  return { user, accessToken, refreshToken };
+  return (
+    cachedSession ?? {
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+    }
+  );
 };
 
-export const setSession = (state: SessionState): void => {
-  if (state.accessToken) {
-    storage.set(ACCESS_TOKEN_KEY, state.accessToken);
-    inMemoryAccessToken = state.accessToken;
-  } else {
-    storage.remove(ACCESS_TOKEN_KEY);
-    inMemoryAccessToken = null;
-  }
-
-  if (state.refreshToken) {
-    storage.set(REFRESH_TOKEN_KEY, state.refreshToken);
-  } else {
-    storage.remove(REFRESH_TOKEN_KEY);
-  }
-
-  if (state.user) {
-    storage.set(USER_KEY, JSON.stringify(state.user));
-  } else {
-    storage.remove(USER_KEY);
-  }
+export const setSession = async (state: SessionState): Promise<void> => {
+  await writeSessionToStorage(state);
+  cachedSession = state;
+  inMemoryAccessToken = state.accessToken;
 };
 
-export const clearSession = (): void => {
-  storage.remove(ACCESS_TOKEN_KEY);
-  storage.remove(REFRESH_TOKEN_KEY);
-  storage.remove(USER_KEY);
+export const clearSession = async (): Promise<void> => {
+  await clearSessionStorage();
+  cachedSession = {
+    user: null,
+    accessToken: null,
+    refreshToken: null,
+  };
   inMemoryAccessToken = null;
 };
 

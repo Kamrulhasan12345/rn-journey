@@ -1,10 +1,9 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
 import { API_BASE_URL, getClientPlatformHeader, getDeviceInfoHeader } from "../constants";
 import {
-  clearSession,
   getAccessTokenFromMemory,
-  getSession,
-  setAccessTokenInMemory,
+  clearSession,
+  readSession,
   setSession,
 } from "../auth/session";
 
@@ -32,7 +31,7 @@ const createClient = (): AxiosInstance => {
     (config.headers as any)["x-client-platform"] = getClientPlatformHeader();
     (config.headers as any)["x-device-info"] = getDeviceInfoHeader();
 
-    const accessToken = getAccessTokenFromMemory() ?? getSession().accessToken;
+    const accessToken = getAccessTokenFromMemory();
     if (accessToken) {
       (config.headers as any).Authorization = `Bearer ${accessToken}`;
     }
@@ -46,19 +45,19 @@ const createClient = (): AxiosInstance => {
       const originalRequest: any = error.config;
 
       if (!originalRequest || originalRequest._retry) {
-        return Promise.reject(error);
+        return Promise.reject(wrapError(error));
       }
 
       const status = error.response?.status;
       if (status !== 401) {
-        return Promise.reject(error);
+        return Promise.reject(wrapError(error));
       }
 
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           pendingRequests.push((token) => {
             if (!token) {
-              reject(error);
+              reject(wrapError(error));
               return;
             }
             originalRequest.headers = originalRequest.headers ?? {};
@@ -72,11 +71,11 @@ const createClient = (): AxiosInstance => {
       isRefreshing = true;
 
       try {
-        const { refreshToken } = getSession();
+        const { refreshToken } = await readSession();
         if (!refreshToken) {
-          clearSession();
+          await clearSession();
           resolvePending(null);
-          return Promise.reject(error);
+          return Promise.reject(wrapError(error));
         }
 
         // Use a bare Axios call without interceptors to avoid infinite loops
@@ -98,14 +97,13 @@ const createClient = (): AxiosInstance => {
         const newRefreshToken: string | undefined = data?.refreshToken ?? refreshToken;
 
         if (!newAccessToken) {
-          clearSession();
+          await clearSession();
           resolvePending(null);
-          return Promise.reject(error);
+          return Promise.reject(wrapError(error));
         }
 
-        const { user } = getSession();
-        setSession({ user, accessToken: newAccessToken, refreshToken: newRefreshToken ?? null });
-        setAccessTokenInMemory(newAccessToken);
+        const { user } = await readSession();
+        await setSession({ user, accessToken: newAccessToken, refreshToken: newRefreshToken ?? null });
 
         resolvePending(newAccessToken);
 
@@ -113,9 +111,9 @@ const createClient = (): AxiosInstance => {
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return instance(originalRequest);
       } catch (refreshErr: any) {
-        clearSession();
+        await clearSession();
         resolvePending(null);
-        return Promise.reject(refreshErr);
+        return Promise.reject(wrapError(refreshErr));
       } finally {
         isRefreshing = false;
       }
@@ -126,3 +124,12 @@ const createClient = (): AxiosInstance => {
 };
 
 export const apiClient = createClient();
+
+function wrapError(error: any): Error {
+  const axiosError = error as AxiosError<any>;
+  const backendMessage = axiosError.response?.data?.message;
+  if (backendMessage && typeof backendMessage === "string") {
+    return new Error(backendMessage);
+  }
+  return error instanceof Error ? error : new Error("Request failed");
+}

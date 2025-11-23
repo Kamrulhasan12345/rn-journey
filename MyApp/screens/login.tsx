@@ -22,11 +22,12 @@ export default function LoginScreen() {
   const navigation = useNavigation<LoginNav>();
 
   const onSubmit = () => {
+    if (loginMutation.isPending) return;
     loginMutation.mutate(
       { email, password },
       {
         onError: (err: any) => {
-          Alert.alert("Login failed", err?.response?.data?.error ?? "Unknown error");
+          Alert.alert("Login failed", err?.message ?? "Unknown error");
         },
       },
     );
@@ -50,8 +51,14 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
       />
-      <Pressable style={styles(theme).button} onPress={onSubmit}>
-        <Text style={styles(theme).buttonText}>Login</Text>
+      <Pressable
+        style={[styles(theme).button, loginMutation.isPending && styles(theme).buttonDisabled]}
+        onPress={onSubmit}
+        disabled={loginMutation.isPending}
+      >
+        <Text style={styles(theme).buttonText}>
+          {loginMutation.isPending ? "Logging in..." : "Login"}
+        </Text>
       </Pressable>
       <Pressable onPress={() => navigation.navigate("Register")}>
         <Text style={styles(theme).link}>Don't have an account? Register</Text>
@@ -80,6 +87,9 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 10,
       alignItems: "center",
       marginTop: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.7,
     },
     buttonText: { color: "#fff", fontWeight: "700" },
     link: { marginTop: 16, color: theme.colors.primary },

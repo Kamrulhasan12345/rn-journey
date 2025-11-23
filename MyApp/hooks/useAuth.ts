@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getSession, setSession, clearSession, type SessionState } from "../auth/session";
+import { readSession, setSession, clearSession, type SessionState } from "../auth/session";
 import * as authApi from "../api/auth";
 
 export function useAuth() {
@@ -8,8 +8,12 @@ export function useAuth() {
 
   const { data: session } = useQuery<SessionState>({
     queryKey: ["session"],
-    queryFn: async () => getSession(),
-    initialData: getSession,
+    queryFn: async () => readSession(),
+    initialData: {
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+    },
     staleTime: Infinity,
   });
 
@@ -41,11 +45,11 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const current = getSession();
+      const current = await readSession();
       await authApi.logout(current.refreshToken);
     },
-    onSuccess: () => {
-      clearSession();
+    onSettled: async () => {
+      await clearSession();
       queryClient.setQueryData<SessionState>(["session"], {
         user: null,
         accessToken: null,
@@ -56,8 +60,8 @@ export function useAuth() {
 
   const logoutAllMutation = useMutation({
     mutationFn: authApi.logoutAll,
-    onSuccess: () => {
-      clearSession();
+    onSettled: async () => {
+      await clearSession();
       queryClient.setQueryData<SessionState>(["session"], {
         user: null,
         accessToken: null,
@@ -69,9 +73,9 @@ export function useAuth() {
   const isAuthenticated = !!session.user && !!session.accessToken;
 
   const bootRefresh = useCallback(async () => {
-    const current = getSession();
+    const current = await readSession();
     if (!current.refreshToken) {
-      clearSession();
+      await clearSession();
       queryClient.setQueryData<SessionState>(["session"], {
         user: null,
         accessToken: null,
@@ -86,10 +90,10 @@ export function useAuth() {
         accessToken: res.accessToken,
         refreshToken: res.refreshToken ?? current.refreshToken,
       };
-      setSession(next);
+      await setSession(next);
       queryClient.setQueryData(["session"], next);
     } catch {
-      clearSession();
+      await clearSession();
       queryClient.setQueryData<SessionState>(["session"], {
         user: null,
         accessToken: null,
