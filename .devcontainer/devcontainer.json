@@ -1,0 +1,10 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/nordcominc/devcontainer-features/android-sdk:1": {},
+    "ghcr.io/tailscale/codespace/tailscale": {
+      "version": "latest"
+    }
+  },
+  "postCreateCommand": "echo 'export PATH=$PATH:/usr/local/lib/android/platform-tools && export GRADLE_USER_HOME=/workspaces && export GRADLE_HOME=/workspaces' >> ~/.bashrc"
+}
