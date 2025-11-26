@@ -6,6 +6,8 @@ export type Note = {
   id: string;
   title: string;
   description: string;
+  // optional HTML representation saved from rich editor
+  descriptionHtml?: string;
   tags: string[];
   createdAt: number;
   updatedAt?: number;
@@ -41,6 +43,7 @@ export function createNote(payload: {
   title: string;
   description: string;
   tags?: string[];
+  descriptionHtml?: string;
 }): Note {
   const id = uuidv4();
   const now = Date.now();
@@ -48,6 +51,7 @@ export function createNote(payload: {
     id,
     title: payload.title,
     description: payload.description,
+    descriptionHtml: payload.descriptionHtml,
     tags: payload.tags ?? [],
     createdAt: now,
     updatedAt: now,

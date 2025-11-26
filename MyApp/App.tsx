@@ -6,6 +6,8 @@ import { createNativeStackNavigator, NativeStackScreenProps } from '@react-navig
 import NotesList from './screens/notes-list';
 import NoteDetails from './screens/note-details';
 import CreateNote from './screens/create-note';
+import CreateNoteRich from './screens/create-note-rich';
+import { Platform } from 'react-native';
 import LoginScreen from './screens/login';
 import RegisterScreen from './screens/register';
 import { useAuth } from './hooks/useAuth';
@@ -18,6 +20,7 @@ type RootStackParamList = {
   Notes: undefined;
   NoteDetail: { id: string }
   CreateNote: undefined
+  CreateNoteRich?: undefined
 };
 
 type NoteDetailProps = NativeStackScreenProps<RootStackParamList, 'NoteDetail'>;
@@ -67,6 +70,9 @@ function RootNavigator() {
           <Stack.Screen name='NoteDetail' component={NoteDetails} />
           <Stack.Screen name='CreateNote' component={CreateNote} options={{
             title: 'Create Note'
+          }} />
+          <Stack.Screen name='CreateNoteRich' component={CreateNoteRich} options={{
+            headerShown: false,
           }} />
         </>
       ) : (

@@ -3,7 +3,7 @@ import Card from "../ui/card";
 import { useCallback, useEffect, useState } from "react";
 import { Note, getAllNotes } from "../notes-store";
 import { storage } from "../storage";
-import { useColorScheme, View, Text, Pressable, StyleSheet } from "react-native";
+import { useColorScheme, View, Text, Pressable, StyleSheet, Platform } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { Link } from "@react-navigation/native";
@@ -31,18 +31,32 @@ export default function NotesList() {
     <View style={styles(theme).container}>
       <View style={styles(theme).topBar}>
         <Text style={styles(theme).topBarTitle}>My Notes</Text>
-        <Pressable
-          onPress={() => logoutMutation.mutate()}
-          style={styles(theme).logoutButton}
-          disabled={logoutMutation.isPending}
-          accessibilityRole="button"
-          accessibilityLabel="Log out"
-        >
-          <Ionicons name="log-out-outline" size={18} color={theme.colors.primary} />
-          <Text style={styles(theme).logoutText}>
-            {logoutMutation.isPending ? "Logging out..." : "Logout"}
-          </Text>
-        </Pressable>
+        <View style={styles(theme).topBarActions}>
+          {Platform.OS !== 'web' && (
+            <Link
+              screen="CreateNoteRich"
+              params={{}}
+              style={styles(theme).richButton}
+              accessibilityRole="button"
+              accessibilityLabel="Create rich note"
+            >
+              <Ionicons name="pencil-outline" size={16} color={theme.colors.primary} />
+              <Text style={styles(theme).richText}>Rich</Text>
+            </Link>
+          )}
+          <Pressable
+            onPress={() => logoutMutation.mutate()}
+            style={styles(theme).logoutButton}
+            disabled={logoutMutation.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Ionicons name="log-out-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles(theme).logoutText}>
+              {logoutMutation.isPending ? "Logging out..." : "Logout"}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <MasonryList
@@ -125,6 +139,21 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "700",
       color: theme.colors.text,
     },
+    topBarActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    richButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.elevated,
+    },
+    richText: { color: theme.colors.primary, fontWeight: "600" },
     logoutButton: {
       flexDirection: "row",
       alignItems: "center",

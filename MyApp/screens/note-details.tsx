@@ -1,5 +1,6 @@
 import { RouteProp } from "@react-navigation/native";
 import { ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { WebView } from 'react-native-webview';
 import { getNote } from "../notes-store";
 import { getTheme } from "../theme";
 
@@ -42,8 +43,20 @@ export default function NoteDetails({ route }: { route: NoteDetailRouteProp }) {
           ))}
         </View>
       ) : null}
-      {!!note.description && (
-        <Text style={baseStyles(theme).body}>{note.description}</Text>
+      {!!note.descriptionHtml ? (
+        <View style={{ marginTop: 8 }}>
+          <View style={{ height: 360, borderRadius: 8, overflow: 'hidden' }}>
+            <WebView
+              originWhitelist={["*"]}
+              source={{ html: note.descriptionHtml as string }}
+              style={{ backgroundColor: theme.colors.surface }}
+            />
+          </View>
+        </View>
+      ) : (
+        !!note.description && (
+          <Text style={baseStyles(theme).body}>{note.description}</Text>
+        )
       )}
     </ScrollView>
   );
