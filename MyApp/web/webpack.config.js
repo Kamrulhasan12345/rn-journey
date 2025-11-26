@@ -33,6 +33,7 @@ module.exports = {
           /node_modules\/@tanstack\//,
           /node_modules\/axios\//,
           /node_modules\/uuid\//,
+          /node_modules\/rn-text-editor\//,
           /node_modules\/@react-native-vector-icons\//,
         ],
         use: {

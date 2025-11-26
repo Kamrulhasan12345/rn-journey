@@ -6,7 +6,7 @@ import { storage } from "../storage";
 import { useColorScheme, View, Text, Pressable, StyleSheet } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { Link } from "@react-navigation/native";
+import { Link, useNavigation } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
 
 export default function NotesList() {
@@ -14,6 +14,7 @@ export default function NotesList() {
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
   const { logoutMutation } = useAuth();
+  const navigation = useNavigation<any>();
 
   useEffect(() => {
     const listener = storage.addOnValueChangedListener(() => {
@@ -31,18 +32,28 @@ export default function NotesList() {
     <View style={styles(theme).container}>
       <View style={styles(theme).topBar}>
         <Text style={styles(theme).topBarTitle}>My Notes</Text>
-        <Pressable
-          onPress={() => logoutMutation.mutate()}
-          style={styles(theme).logoutButton}
-          disabled={logoutMutation.isPending}
-          accessibilityRole="button"
-          accessibilityLabel="Log out"
-        >
-          <Ionicons name="log-out-outline" size={18} color={theme.colors.primary} />
-          <Text style={styles(theme).logoutText}>
-            {logoutMutation.isPending ? "Logging out..." : "Logout"}
-          </Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            onPress={() => navigation.navigate('Editor')}
+            style={[styles(theme).logoutButton, { marginRight: 8 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Open editor"
+          >
+            <Ionicons name="pencil" size={18} color={theme.colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={() => logoutMutation.mutate()}
+            style={styles(theme).logoutButton}
+            disabled={logoutMutation.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Ionicons name="log-out-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles(theme).logoutText}>
+              {logoutMutation.isPending ? "Logging out..." : "Logout"}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <MasonryList
