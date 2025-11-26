@@ -10,5 +10,6 @@ module.exports = {
         extensions: ['.ios.js', '.android.js', '.js', '.json', '.web.js'],
       },
     ],
+    'react-native-worklets/plugin',
   ],
 };
