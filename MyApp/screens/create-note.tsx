@@ -59,6 +59,23 @@ export default function CreateNote() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => deleteNote(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notes"] });
+      const prev = queryClient.getQueryData<any[]>(["notes"]) || [];
+      queryClient.setQueryData<any[]>(["notes"], prev.filter((n) => n.id !== id));
+      return { prev };
+    },
+    onError: (err: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["notes"], ctx.prev);
+      Alert.alert("Delete failed", err?.message || "Could not delete note");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -92,16 +109,17 @@ export default function CreateNote() {
       const isEmptyTitle = !title.trim();
       if (!isEmptyTitle) return;
       e.preventDefault();
-      deleteNote(noteId)
-        .catch(() => { })
-        .finally(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      deleteMutation.mutate(noteId, {
+        onSettled: () => {
           queryClient.removeQueries({ queryKey: ["note", noteId] });
           queryClient.invalidateQueries({ queryKey: ["notes"] });
           navigation.dispatch(e.data.action);
-        });
+        },
+      });
     });
     return unsubscribe;
-  }, [navigation, noteId, title]);
+  }, [navigation, noteId, title, deleteMutation]);
 
   return (
     <KeyboardAvoidingView
@@ -145,6 +163,7 @@ export default function CreateNote() {
             <Text style={styles.debugLine}>hasCreated: {String(hasCreated)}</Text>
             <Text style={styles.debugLine}>createPending: {String(createMutation.isPending)}</Text>
             <Text style={styles.debugLine}>updatePending: {String(updateMutation.isPending)}</Text>
+            <Text style={styles.debugLine}>deletePending: {String(deleteMutation.isPending)}</Text>
             <Text style={styles.debugLine}>lastRequests:</Text>
             {getRecentRequests().slice(-5).map((r,i)=>(
               <Text key={i} style={styles.debugLine}>{JSON.stringify({m:r.method,u:r.url,hasAuth:!!(r.headers&&(r.headers as any).Authorization)})}</Text>

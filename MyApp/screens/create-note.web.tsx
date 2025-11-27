@@ -10,10 +10,10 @@ import {
   StyleSheet,
   useColorScheme,
 } from "react-native";
-import { Link } from "@react-navigation/native";
+import { Link, useNavigation } from "@react-navigation/native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createNoteApi, updateNoteTitle } from "../api/notes";
+import { createNoteApi, updateNoteTitle, deleteNote } from "../api/notes";
 import { getRecentRequests } from "../api/client";
 import { getTheme } from "../theme";
 
@@ -22,6 +22,7 @@ export default function CreateNote() {
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
   const styles = useMemo(() => themedStyles(theme), [theme]);
+  const navigation = useNavigation<any>();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [noteId, setNoteId] = useState<string | null>(null);
@@ -57,6 +58,23 @@ export default function CreateNote() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => deleteNote(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notes"] });
+      const prev = queryClient.getQueryData<any[]>(["notes"]) || [];
+      queryClient.setQueryData<any[]>(["notes"], prev.filter((n) => n.id !== id));
+      return { prev };
+    },
+    onError: (err: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["notes"], ctx.prev);
+      Alert.alert("Delete failed", err?.message || "Could not delete note");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
+
   const onSave = () => {
     // Web: navigate back via Link; cleanup empty note on next effect
   };
@@ -66,6 +84,23 @@ export default function CreateNote() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  // Delete empty note when navigating back/away
+  useEffect(() => {
+    const sub = navigation.addListener("beforeRemove", (e: any) => {
+      const trimmed = title.trim();
+      if (noteId && !trimmed) {
+        e.preventDefault();
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        deleteMutation.mutate(noteId, {
+          onSettled: () => {
+            navigation.dispatch(e.data.action);
+          },
+        });
+      }
+    });
+    return sub;
+  }, [navigation, noteId, title, deleteMutation]);
 
   useEffect(() => {
     const trimmed = title.trim();
@@ -132,6 +167,7 @@ export default function CreateNote() {
           <Text style={styles.debugLine}>hasCreated: {String(hasCreated)}</Text>
           <Text style={styles.debugLine}>createPending: {String(createMutation.isPending)}</Text>
           <Text style={styles.debugLine}>updatePending: {String(updateMutation.isPending)}</Text>
+          <Text style={styles.debugLine}>deletePending: {String(deleteMutation.isPending)}</Text>
           <Text style={styles.debugLine}>lastRequests:</Text>
           {getRecentRequests().slice(-5).map((r,i)=>(
             <Text key={i} style={styles.debugLine}>{JSON.stringify({m:r.method,u:r.url,hasAuth:!!(r.headers&&(r.headers as any).Authorization)})}</Text>
