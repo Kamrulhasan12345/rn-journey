@@ -96,7 +96,7 @@ export default function CreateNote() {
         updateMutation.mutate({ id: noteId, title: trimmed });
       }, 400);
     }
-  }, [title]);
+  }, [title, hasCreated, noteId, createMutation, updateMutation]);
 
   const onSave = () => {
     navigation.goBack();
@@ -118,7 +118,7 @@ export default function CreateNote() {
       });
     });
     return unsubscribe;
-  }, [navigation, noteId, title, deleteMutation]);
+  }, [navigation, noteId, title, deleteMutation, queryClient]);
 
   return (
     <KeyboardAvoidingView
