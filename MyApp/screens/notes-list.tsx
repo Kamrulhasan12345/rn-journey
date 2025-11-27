@@ -7,6 +7,7 @@ import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { Link } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
+// Menu global state subscription removed; cards handle their own toggle logic now.
 
 export default function NotesList() {
   const { session, logoutMutation } = useAuth();
@@ -71,8 +72,6 @@ export default function NotesList() {
           onRefresh={() => refetch()}
         />
       )}
-
-      
 
       <Pressable
         style={styles(theme).fab}
@@ -168,12 +167,7 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
     retryText: { color: theme.colors.primary, marginBottom: 12 },
     errorDetailsLabel: { color: theme.colors.subtext, fontSize: 12 },
     errorDetails: { color: theme.colors.subtext, fontSize: 12 },
-    jsonWrap: { marginTop: 8, backgroundColor: theme.colors.elevated, borderRadius: 8, padding: 10 },
-    jsonTitle: { color: theme.colors.subtext, fontSize: 12, marginBottom: 6 },
-    jsonBlock: { color: theme.colors.subtext, fontSize: 12 },
     loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    debugFooter: { paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm },
-    debugText: { color: theme.colors.subtext, fontSize: 12 },
     fab: {
       position: "absolute",
       right: 20,
@@ -190,4 +184,5 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       shadowOffset: theme.shadow.shadowOffset,
       elevation: theme.shadow.elevation,
     },
+
   });
