@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-import { createNote } from "../notes-store";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createNoteApi } from "../api/notes";
 import { NoteListNavigationProp } from "../App";
 import { getTheme } from "../theme";
 
@@ -24,16 +25,20 @@ export default function CreateNote() {
   const theme = getTheme(scheme);
   const styles = useMemo(() => themedStyles(theme), [theme]);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [tagsText, setTagsText] = useState("");
+  const [content, setContent] = useState("");
   const canSave = title.trim().length > 0;
 
-  function parseTags(text: string): string[] {
-    return text
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
+  const queryClient = useQueryClient();
+  const createMutation = useMutation({
+    mutationFn: (body: { title: string }) => createNoteApi(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      navigation.goBack();
+    },
+    onError: () => {
+      Alert.alert("Error", "Failed to save note");
+    },
+  });
 
   const onSave = () => {
     if (!title.trim()) {
@@ -41,20 +46,7 @@ export default function CreateNote() {
       return;
     }
 
-    try {
-      createNote({
-        title: title.trim(),
-        description: description.trim(),
-        tags: parseTags(tagsText),
-      } as { title: string; description: string; tags?: string[] });
-
-      // Navigate back to list. If you want to scroll to the new note,
-      // you can pass the id: navigation.navigate('Notes', { createdId: note.id })
-      navigation.goBack();
-    } catch (e) {
-      console.error("Failed to create note", e);
-      Alert.alert("Error", "Failed to save note");
-    }
+    createMutation.mutate({ title: title.trim() });
   };
 
   return (
@@ -73,25 +65,15 @@ export default function CreateNote() {
           autoFocus
         />
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>Content</Text>
         <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Enter description"
+          value={content}
+          onChangeText={setContent}
+          placeholder="Enter content"
           placeholderTextColor={theme.colors.subtext}
           style={[styles.input, styles.textArea]}
           multiline
         />
-
-        <Text style={styles.label}>Tags (comma separated)</Text>
-        <TextInput
-          value={tagsText}
-          onChangeText={setTagsText}
-          placeholder="tag1, tag2"
-          placeholderTextColor={theme.colors.subtext}
-          style={styles.input}
-        />
-        <Text style={styles.helper}>Separate tags with commas</Text>
 
         <Pressable
           style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
@@ -100,7 +82,7 @@ export default function CreateNote() {
           accessibilityRole="button"
           accessibilityLabel="Save note"
         >
-          <Text style={styles.saveText}>Save</Text>
+          <Text style={styles.saveText}>{createMutation.isPending ? "Saving..." : "Save"}</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>

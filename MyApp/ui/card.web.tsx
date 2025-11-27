@@ -1,7 +1,7 @@
 import { Link } from "@react-navigation/native"
-import { ColorSchemeName, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native"
+import { ColorSchemeName, Pressable, StyleSheet, Text, useColorScheme } from "react-native"
 import { useMemo } from "react";
-import { Note } from "../notes-store";
+import { Note } from "../api/notes";
 import { getTheme } from "../theme";
 
 export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?: ColorSchemeName }) {
@@ -56,18 +56,11 @@ export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?
       accessibilityRole="button"
       accessibilityLabel={`Open note ${item.title}`}
     >
-      <Link screen='NoteDetail' params={{id: item.id}}>
+      <Link screen='NoteDetail' params={{ id: item.id }}>
         <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
-        {!!item.description && (
-          <Text style={styles.description} numberOfLines={3} ellipsizeMode="tail">{item.description}</Text>
+        {!!item.contentPreview && (
+          <Text style={styles.description} numberOfLines={3} ellipsizeMode="tail">{item.contentPreview}</Text>
         )}
-        {item.tags?.length ? (
-          <View style={styles.tagContainer}>
-            {item.tags.map((v, i) => (
-              <Text key={i} style={styles.tag}>{v}</Text>
-            ))}
-          </View>
-        ) : null}
       </Link>
     </Pressable>
   )

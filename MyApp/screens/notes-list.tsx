@@ -1,30 +1,24 @@
 import MasonryList from "@react-native-seoul/masonry-list";
 import Card from "../ui/card";
-import { useCallback, useEffect, useState } from "react";
-import { Note, getAllNotes } from "../notes-store";
-import { storage } from "../storage";
-import { useColorScheme, View, Text, Pressable, StyleSheet } from "react-native";
+import { useCallback } from "react";
+import { useNotes } from "../hooks/useNotes";
+import { useColorScheme, View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { Link } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
 
 export default function NotesList() {
-  const [notes, setNotes] = useState<Note[]>(() => getAllNotes());
+  const { session, logoutMutation } = useAuth();
+  const hasToken = !!session?.accessToken;
+  const { data: notes = [], isLoading, isError, refetch, isFetching } = useNotes({ enabled: hasToken });
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
-  const { logoutMutation } = useAuth();
 
-  useEffect(() => {
-    const listener = storage.addOnValueChangedListener(() => {
-      setNotes(getAllNotes());
-    });
-    return () => listener.remove();
-  }, []);
+  // TODO: remove MMKV storage subscription and notes-store when API is fully adopted
 
-  const renderItem = useCallback(({ item }: { item: unknown; }) => {
-    const note = item as Note;
-    return <Card item={note} scheme={scheme} />;
+  const renderItem = useCallback(({ item }: { item: any; }) => {
+    return <Card item={item} scheme={scheme} />;
   }, [scheme]);
 
   return (
@@ -45,19 +39,34 @@ export default function NotesList() {
         </Pressable>
       </View>
 
-      <MasonryList
-        data={notes}
-        keyExtractor={(item) => `${item.id}-${scheme || 'light'}`}
-        numColumns={2}
-        renderItem={renderItem}
-        style={styles(theme).list}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.lg,
-          paddingTop: theme.spacing.md,
-          paddingBottom: theme.spacing.xl + 56,
-        }}
-        ListEmptyComponent={EmptyState}
-      />
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator />
+        </View>
+      ) : isError ? (
+        <View style={{ padding: 20 }}>
+          <Text style={{ color: theme.colors.text }}>Failed to load notes.</Text>
+          <Pressable onPress={() => refetch()}>
+            <Text style={{ color: theme.colors.primary }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <MasonryList
+          data={notes as any}
+          keyExtractor={(item) => `${item.id}-${scheme || 'light'}`}
+          numColumns={2}
+          renderItem={renderItem}
+          style={styles(theme).list}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.md,
+            paddingBottom: theme.spacing.xl + 56,
+          }}
+          ListEmptyComponent={EmptyState}
+          refreshing={isFetching}
+          onRefresh={() => refetch()}
+        />
+      )}
 
       <Pressable
         style={styles(theme).fab}
