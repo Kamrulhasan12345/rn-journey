@@ -18,6 +18,8 @@ let cachedSession: SessionState | null = null;
 export const readSession = async (): Promise<SessionState> => {
   const session = await readSessionFromStorage();
   cachedSession = session;
+  // Ensure in-memory token is hydrated for early interceptors
+  inMemoryAccessToken = session.accessToken;
   return session;
 };
 

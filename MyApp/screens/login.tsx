@@ -85,4 +85,5 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
     },
     buttonText: { color: "#fff", fontWeight: "700" },
     link: { marginTop: 16, color: theme.colors.primary },
+    
   });

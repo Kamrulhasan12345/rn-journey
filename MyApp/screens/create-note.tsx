@@ -1,5 +1,5 @@
 // screens/create-note.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-import { createNote } from "../notes-store";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createNoteApi, updateNoteTitle, deleteNote } from "../api/notes";
 import { NoteListNavigationProp } from "../App";
 import { getTheme } from "../theme";
 
@@ -24,38 +25,100 @@ export default function CreateNote() {
   const theme = getTheme(scheme);
   const styles = useMemo(() => themedStyles(theme), [theme]);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [tagsText, setTagsText] = useState("");
+  const [content, setContent] = useState("");
+  const [noteId, setNoteId] = useState<string | null>(null);
+  const [hasCreated, setHasCreated] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canSave = title.trim().length > 0;
 
-  function parseTags(text: string): string[] {
-    return text
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
+  const queryClient = useQueryClient();
+  const createMutation = useMutation({
+    mutationFn: (body: { title: string }) => createNoteApi(body),
+    onSuccess: (note) => {
+      setNoteId(note.id);
+      setHasCreated(true);
+      queryClient.setQueryData(["note", note.id], note);
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+    onError: () => {
+      Alert.alert("Error", "Failed to create note");
+    },
+  });
 
-  const onSave = () => {
-    if (!title.trim()) {
-      Alert.alert("Validation", "Title is required");
+  const updateMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) => updateNoteTitle(id, { title }),
+    onSuccess: (note) => {
+      queryClient.setQueryData(["note", note.id], note);
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+    onError: (err: any) => {
+      const status = err?.status;
+      const msg = err?.message || "Failed to update";
+      Alert.alert("Error", `${msg}${status ? ` (code ${status})` : ""}`);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => deleteNote(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notes"] });
+      const prev = queryClient.getQueryData<any[]>(["notes"]) || [];
+      queryClient.setQueryData<any[]>(["notes"], prev.filter((n) => n.id !== id));
+      return { prev };
+    },
+    onError: (err: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["notes"], ctx.prev);
+      Alert.alert("Delete failed", err?.message || "Could not delete note");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+
+    if (!hasCreated && !noteId && !createMutation.isPending) {
+      createMutation.mutate({ title: trimmed });
       return;
     }
 
-    try {
-      createNote({
-        title: title.trim(),
-        description: description.trim(),
-        tags: parseTags(tagsText),
-      } as { title: string; description: string; tags?: string[] });
-
-      // Navigate back to list. If you want to scroll to the new note,
-      // you can pass the id: navigation.navigate('Notes', { createdId: note.id })
-      navigation.goBack();
-    } catch (e) {
-      console.error("Failed to create note", e);
-      Alert.alert("Error", "Failed to save note");
+    if (noteId) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        updateMutation.mutate({ id: noteId, title: trimmed });
+      }, 400);
     }
+  }, [title, hasCreated, noteId, createMutation, updateMutation]);
+
+  const onSave = () => {
+    navigation.goBack();
   };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (!noteId) return;
+      const isEmptyTitle = !title.trim();
+      if (!isEmptyTitle) return;
+      e.preventDefault();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      deleteMutation.mutate(noteId, {
+        onSettled: () => {
+          queryClient.removeQueries({ queryKey: ["note", noteId] });
+          queryClient.invalidateQueries({ queryKey: ["notes"] });
+          navigation.dispatch(e.data.action);
+        },
+      });
+    });
+    return unsubscribe;
+  }, [navigation, noteId, title, deleteMutation, queryClient]);
 
   return (
     <KeyboardAvoidingView
@@ -73,25 +136,15 @@ export default function CreateNote() {
           autoFocus
         />
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>Content</Text>
         <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Enter description"
+          value={content}
+          onChangeText={setContent}
+          placeholder="Enter content"
           placeholderTextColor={theme.colors.subtext}
           style={[styles.input, styles.textArea]}
           multiline
         />
-
-        <Text style={styles.label}>Tags (comma separated)</Text>
-        <TextInput
-          value={tagsText}
-          onChangeText={setTagsText}
-          placeholder="tag1, tag2"
-          placeholderTextColor={theme.colors.subtext}
-          style={styles.input}
-        />
-        <Text style={styles.helper}>Separate tags with commas</Text>
 
         <Pressable
           style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
@@ -100,8 +153,9 @@ export default function CreateNote() {
           accessibilityRole="button"
           accessibilityLabel="Save note"
         >
-          <Text style={styles.saveText}>Save</Text>
+          <Text style={styles.saveText}>Done</Text>
         </Pressable>
+        
       </View>
     </KeyboardAvoidingView>
   );
@@ -140,4 +194,5 @@ const themedStyles = (theme: ReturnType<typeof getTheme>) =>
       opacity: 0.6,
     },
     saveText: { color: "#fff", fontWeight: "700" },
+    
   });

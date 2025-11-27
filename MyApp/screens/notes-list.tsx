@@ -1,30 +1,25 @@
 import MasonryList from "@react-native-seoul/masonry-list";
 import Card from "../ui/card";
-import { useCallback, useEffect, useState } from "react";
-import { Note, getAllNotes } from "../notes-store";
-import { storage } from "../storage";
-import { useColorScheme, View, Text, Pressable, StyleSheet } from "react-native";
+import { useCallback } from "react";
+import { useNotes } from "../hooks/useNotes";
+import { useColorScheme, View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { Link } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
+// Menu global state subscription removed; cards handle their own toggle logic now.
 
 export default function NotesList() {
-  const [notes, setNotes] = useState<Note[]>(() => getAllNotes());
+  const { session, logoutMutation } = useAuth();
+  const hasToken = !!session?.accessToken;
+  const { data: notes = [], isLoading, isError, error, refetch, isFetching } = useNotes({ enabled: hasToken });
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
-  const { logoutMutation } = useAuth();
 
-  useEffect(() => {
-    const listener = storage.addOnValueChangedListener(() => {
-      setNotes(getAllNotes());
-    });
-    return () => listener.remove();
-  }, []);
+  // TODO: remove MMKV storage subscription and notes-store when API is fully adopted
 
-  const renderItem = useCallback(({ item }: { item: unknown; }) => {
-    const note = item as Note;
-    return <Card item={note} scheme={scheme} />;
+  const renderItem = useCallback(({ item }: { item: any; }) => {
+    return <Card item={item} scheme={scheme} />;
   }, [scheme]);
 
   return (
@@ -45,19 +40,38 @@ export default function NotesList() {
         </Pressable>
       </View>
 
-      <MasonryList
-        data={notes}
-        keyExtractor={(item) => `${item.id}-${scheme || 'light'}`}
-        numColumns={2}
-        renderItem={renderItem}
-        style={styles(theme).list}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.lg,
-          paddingTop: theme.spacing.md,
-          paddingBottom: theme.spacing.xl + 56,
-        }}
-        ListEmptyComponent={EmptyState}
-      />
+      {isLoading ? (
+        <View style={styles(theme).loadingWrap}>
+          <ActivityIndicator />
+        </View>
+      ) : isError ? (
+        <View style={styles(theme).errorWrap}>
+          <Text style={styles(theme).errorTitle}>Failed to load notes.</Text>
+          <Pressable onPress={() => refetch()}>
+            <Text style={styles(theme).retryText}>Retry</Text>
+          </Pressable>
+          <Text style={styles(theme).errorDetailsLabel}>Details:</Text>
+          <Text style={styles(theme).errorDetails}>
+            {error instanceof Error ? error.message : "Unknown error"}
+          </Text>
+        </View>
+      ) : (
+        <MasonryList
+          data={notes as any}
+          keyExtractor={(item) => `${item.id}-${scheme || 'light'}`}
+          numColumns={2}
+          renderItem={renderItem}
+          style={styles(theme).list}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.md,
+            paddingBottom: theme.spacing.xl + 56,
+          }}
+          ListEmptyComponent={EmptyState}
+          refreshing={isFetching}
+          onRefresh={() => refetch()}
+        />
+      )}
 
       <Pressable
         style={styles(theme).fab}
@@ -148,6 +162,12 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: theme.radius.pill,
     },
     ctaText: { color: "#fff", fontWeight: "600" },
+    errorWrap: { padding: 20 },
+    errorTitle: { color: theme.colors.text, marginBottom: 8 },
+    retryText: { color: theme.colors.primary, marginBottom: 12 },
+    errorDetailsLabel: { color: theme.colors.subtext, fontSize: 12 },
+    errorDetails: { color: theme.colors.subtext, fontSize: 12 },
+    loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     fab: {
       position: "absolute",
       right: 20,
@@ -164,4 +184,5 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       shadowOffset: theme.shadow.shadowOffset,
       elevation: theme.shadow.elevation,
     },
+
   });

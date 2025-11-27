@@ -1,5 +1,5 @@
 // screens/create-note.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   StyleSheet,
   useColorScheme,
 } from "react-native";
-import { Link } from "@react-navigation/native";
+import { Link, useNavigation } from "@react-navigation/native";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createNote } from "../notes-store";
+import { createNoteApi, updateNoteTitle, deleteNote } from "../api/notes";
 import { getTheme } from "../theme";
 
 
@@ -20,35 +21,102 @@ export default function CreateNote() {
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
   const styles = useMemo(() => themedStyles(theme), [theme]);
+  const navigation = useNavigation<any>();
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [tagsText, setTagsText] = useState("");
+  const [content, setContent] = useState("");
+  const [noteId, setNoteId] = useState<string | null>(null);
+  const [hasCreated, setHasCreated] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canSave = title.trim().length > 0;
+  const queryClient = useQueryClient();
+  const createMutation = useMutation({
+    mutationFn: (body: { title: string }) => createNoteApi(body),
+    onSuccess: (note) => {
+      setNoteId(note.id);
+      setHasCreated(true);
+      queryClient.setQueryData(["note", note.id], note);
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+    onError: (err: any) => {
+      const status = err?.status;
+      const msg = err?.message || "Failed to create note";
+      Alert.alert("Error", `${msg}${status ? ` (code ${status})` : ""}`);
+    },
+  });
 
-  function parseTags(text: string): string[] {
-    return text
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
+  const updateMutation = useMutation({
+    mutationFn: ({ id, nextTitle }: { id: string; nextTitle: string }) => updateNoteTitle(id, { title: nextTitle }),
+    onSuccess: (note) => {
+      queryClient.setQueryData(["note", note.id], note);
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+    onError: (err: any) => {
+      const status = err?.status;
+      const msg = err?.message || "Failed to update";
+      Alert.alert("Error", `${msg}${status ? ` (code ${status})` : ""}`);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => deleteNote(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notes"] });
+      const prev = queryClient.getQueryData<any[]>(["notes"]) || [];
+      queryClient.setQueryData<any[]>(["notes"], prev.filter((n) => n.id !== id));
+      return { prev };
+    },
+    onError: (err: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["notes"], ctx.prev);
+      Alert.alert("Delete failed", err?.message || "Could not delete note");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
 
   const onSave = () => {
-    if (!title.trim()) {
-      Alert.alert("Validation", "Title is required");
+    // Web: navigate back via Link; cleanup empty note on next effect
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  // Delete empty note when navigating back/away
+  useEffect(() => {
+    const sub = navigation.addListener("beforeRemove", (e: any) => {
+      const trimmed = title.trim();
+      if (noteId && !trimmed) {
+        e.preventDefault();
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        deleteMutation.mutate(noteId, {
+          onSettled: () => {
+            navigation.dispatch(e.data.action);
+          },
+        });
+      }
+    });
+    return sub;
+  }, [navigation, noteId, title, deleteMutation]);
+
+  useEffect(() => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+
+    if (!hasCreated && !noteId && !createMutation.isPending) {
+      createMutation.mutate({ title: trimmed });
       return;
     }
 
-    try {
-      createNote({
-        title: title.trim(),
-        description: description.trim(),
-        tags: parseTags(tagsText),
-      } as { title: string; description: string; tags?: string[] });
-    } catch (e) {
-      console.error("Failed to create note", e);
-      Alert.alert("Error", "Failed to save note");
+    if (noteId) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        updateMutation.mutate({ id: noteId, nextTitle: trimmed });
+      }, 400);
     }
-  };
+  }, [title, hasCreated, noteId, createMutation, updateMutation]);
 
   return (
     <KeyboardAvoidingView
@@ -66,25 +134,15 @@ export default function CreateNote() {
           autoFocus
         />
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>Content</Text>
         <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Enter description"
+          value={content}
+          onChangeText={setContent}
+          placeholder="Enter content"
           placeholderTextColor={theme.colors.subtext}
           style={[styles.input, styles.textArea]}
           multiline
         />
-
-        <Text style={styles.label}>Tags (comma separated)</Text>
-        <TextInput
-          value={tagsText}
-          onChangeText={setTagsText}
-          placeholder="tag1, tag2"
-          placeholderTextColor={theme.colors.subtext}
-          style={styles.input}
-        />
-        <Text style={styles.helper}>Separate tags with commas</Text>
 
         {canSave ? (
           <Link
@@ -95,13 +153,14 @@ export default function CreateNote() {
             accessibilityLabel="Save note"
             style={styles.saveButton}
           >
-            <Text style={{...styles.saveText, textAlign: "center"}}>Save</Text>
+            <Text style={styles.saveText}>{createMutation.isPending ? "Saving..." : "Save"}</Text>
           </Link>
         ) : (
           <View style={[styles.saveButton, styles.saveButtonDisabled]}>
             <Text style={styles.saveText}>Save</Text>
           </View>
         )}
+        
       </View>
     </KeyboardAvoidingView>
   );
@@ -140,4 +199,5 @@ const themedStyles = (theme: ReturnType<typeof getTheme>) =>
       opacity: 0.6,
     },
     saveText: { color: "#fff", fontWeight: "700" },
+    
   });

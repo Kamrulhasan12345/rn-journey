@@ -1,8 +1,11 @@
 import { Link } from "@react-navigation/native"
-import { ColorSchemeName, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native"
-import { useMemo } from "react";
-import { Note } from "../notes-store";
+import { ColorSchemeName, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native"
+import { useMemo, useState, useEffect } from "react";
+import { Note } from "../api/notes";
 import { getTheme } from "../theme";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteNote } from "../api/notes";
+import { toggleOpenCard, subscribe, setOpenCardId } from "./card-menu-state";
 
 export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?: ColorSchemeName }) {
   const systemScheme = useColorScheme();
@@ -10,6 +13,7 @@ export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?
   const theme = getTheme(scheme);
 
   const styles = useMemo(() => StyleSheet.create({
+    wrap: { position: 'relative' },
     card: {
       marginHorizontal: 6,
       padding: 14,
@@ -22,6 +26,7 @@ export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?
       shadowOffset: theme.shadow.shadowOffset,
       elevation: theme.shadow.elevation,
     },
+    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     title: {
       fontWeight: "700",
       fontSize: 16,
@@ -47,28 +52,74 @@ export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?
       marginBottom: 6,
       fontSize: 12,
     },
+    menuTrigger: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    menu: { position: 'absolute', right: 10, top: 10, backgroundColor: theme.colors.elevated, borderRadius: 10, paddingVertical: 6, minWidth: 160, boxShadow: '0 2px 10px rgba(0,0,0,0.2)', zIndex: 9999 },
+    menuItem: { paddingHorizontal: 12, paddingVertical: 10 },
+    menuItemText: { color: theme.colors.text },
+    menuItemDisabled: { opacity: 0.5 },
+    destructiveText: { color: '#d32f2f' },
   }), [theme]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    const unsub = subscribe((openId) => {
+      setMenuOpen(openId === item.id);
+    });
+    return unsub;
+  }, [item.id]);
+  const queryClient = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => deleteNote(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notes"] });
+      const prev = queryClient.getQueryData<any[]>(["notes"]) || [];
+      queryClient.setQueryData<any[]>(["notes"], prev.filter((n) => n.id !== id));
+      return { prev };
+    },
+    onError: (_err: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["notes"], ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
+
   return (
-    <Pressable
-      style={styles.card}
-      android_ripple={{ color: theme.colors.border }}
-      accessibilityRole="button"
-      accessibilityLabel={`Open note ${item.title}`}
-    >
-      <Link screen='NoteDetail' params={{id: item.id}}>
-        <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
-        {!!item.description && (
-          <Text style={styles.description} numberOfLines={3} ellipsizeMode="tail">{item.description}</Text>
+    <View style={styles.wrap}>
+      <Pressable
+        style={styles.card}
+        android_ripple={{ color: theme.colors.border }}
+        accessibilityRole="button"
+        accessibilityLabel={`Open note ${item.title}`}
+      >
+        <View style={styles.topRow}>
+          <Link screen='NoteDetail' params={{ id: item.id }}>
+            <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
+          </Link>
+          <Pressable onPress={() => toggleOpenCard(item.id)} accessibilityRole="button" accessibilityLabel="Open menu" style={styles.menuTrigger}>
+            <Text style={{ color: theme.colors.subtext }}>⋮</Text>
+          </Pressable>
+        </View>
+        {!!item.contentPreview && (
+          <Text style={styles.description} numberOfLines={3} ellipsizeMode="tail">{item.contentPreview}</Text>
         )}
-        {item.tags?.length ? (
-          <View style={styles.tagContainer}>
-            {item.tags.map((v, i) => (
-              <Text key={i} style={styles.tag}>{v}</Text>
-            ))}
+      </Pressable>
+      {menuOpen && (
+        <>
+          <View style={styles.menu}>
+            <Link screen='NoteDetail' params={{ id: item.id }}>
+              <View style={styles.menuItem}><Text style={styles.menuItemText}>Open</Text></View>
+            </Link>
+            <View style={[styles.menuItem, styles.menuItemDisabled]}><Text style={styles.menuItemText}>Rename (soon)</Text></View>
+            <View style={[styles.menuItem, styles.menuItemDisabled]}><Text style={styles.menuItemText}>Manage Access (soon)</Text></View>
+            <View style={[styles.menuItem, styles.menuItemDisabled]}><Text style={styles.menuItemText}>Duplicate (soon)</Text></View>
+            <View style={[styles.menuItem, styles.menuItemDisabled]}><Text style={styles.menuItemText}>Transfer Ownership (soon)</Text></View>
+            <Pressable style={styles.menuItem} onPress={() => { setOpenCardId(null); deleteMutation.mutate(item.id); }}>
+              <Text style={[styles.menuItemText, styles.destructiveText]}>Delete</Text>
+            </Pressable>
           </View>
-        ) : null}
-      </Link>
-    </Pressable>
+        </>
+      )}
+    </View>
   )
 }

@@ -1,6 +1,6 @@
 import { RouteProp } from "@react-navigation/native";
-import { ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
-import { getNote } from "../notes-store";
+import { ScrollView, StyleSheet, Text, View, useColorScheme, ActivityIndicator, Pressable } from "react-native";
+import { useNote } from "../hooks/useNotes";
 import { getTheme } from "../theme";
 
 type RootStackParamList = {
@@ -15,17 +15,27 @@ export default function NoteDetails({ route }: { route: NoteDetailRouteProp }) {
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
 
-  const note = getNote(id);
-  if (!note) {
+  const { data: note, isLoading, isError, refetch } = useNote(id);
+  if (isLoading) {
+    return (
+      <View style={[baseStyles(theme).container, baseStyles(theme).center]}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+  if (isError || !note) {
     return (
       <View style={[baseStyles(theme).container, baseStyles(theme).center]}>
         <Text style={baseStyles(theme).title}>Note not found</Text>
         <Text style={baseStyles(theme).sub}>It may have been deleted.</Text>
+        <Pressable onPress={() => refetch()} accessibilityRole="button" accessibilityLabel="Retry">
+          <Text style={{ color: theme.colors.primary }}>Retry</Text>
+        </Pressable>
       </View>
     );
   }
 
-  const created = new Date(note.createdAt).toLocaleString();
+  const created = note.createdAt ? new Date(note.createdAt).toLocaleString() : "";
   const updated = note.updatedAt ? new Date(note.updatedAt).toLocaleString() : undefined;
 
   return (
@@ -35,15 +45,8 @@ export default function NoteDetails({ route }: { route: NoteDetailRouteProp }) {
         <Text style={baseStyles(theme).meta}>Created: {created}</Text>
         {updated && <Text style={baseStyles(theme).meta}>Updated: {updated}</Text>}
       </View>
-      {note.tags?.length ? (
-        <View style={baseStyles(theme).tagContainer}>
-          {note.tags.map((t, i) => (
-            <Text key={i} style={baseStyles(theme).tag}>{t}</Text>
-          ))}
-        </View>
-      ) : null}
-      {!!note.description && (
-        <Text style={baseStyles(theme).body}>{note.description}</Text>
+      {!!note.content && (
+        <Text style={baseStyles(theme).body}>{note.content}</Text>
       )}
     </ScrollView>
   );
