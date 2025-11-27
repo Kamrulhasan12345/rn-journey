@@ -25,7 +25,6 @@ export function useAuth() {
         accessToken: res.accessToken,
         refreshToken: res.refreshToken ?? null,
       };
-      console.log('[auth] login success raw:', res);
       setSession(next);
       queryClient.setQueryData(["session"], next);
     },
@@ -39,7 +38,6 @@ export function useAuth() {
         accessToken: res.accessToken,
         refreshToken: res.refreshToken ?? null,
       };
-      console.log('[auth] register success raw:', res);
       setSession(next);
       queryClient.setQueryData(["session"], next);
     },

@@ -14,7 +14,6 @@ import { Link, useNavigation } from "@react-navigation/native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createNoteApi, updateNoteTitle, deleteNote } from "../api/notes";
-import { getRecentRequests } from "../api/client";
 import { getTheme } from "../theme";
 
 
@@ -161,18 +160,7 @@ export default function CreateNote() {
             <Text style={styles.saveText}>Save</Text>
           </View>
         )}
-        <View style={styles.debugBox}>
-          <Text style={styles.debugTitle}>Debug</Text>
-          <Text style={styles.debugLine}>noteId: {noteId || 'null'}</Text>
-          <Text style={styles.debugLine}>hasCreated: {String(hasCreated)}</Text>
-          <Text style={styles.debugLine}>createPending: {String(createMutation.isPending)}</Text>
-          <Text style={styles.debugLine}>updatePending: {String(updateMutation.isPending)}</Text>
-          <Text style={styles.debugLine}>deletePending: {String(deleteMutation.isPending)}</Text>
-          <Text style={styles.debugLine}>lastRequests:</Text>
-          {getRecentRequests().slice(-5).map((r,i)=>(
-            <Text key={i} style={styles.debugLine}>{JSON.stringify({m:r.method,u:r.url,hasAuth:!!(r.headers&&(r.headers as any).Authorization)})}</Text>
-          ))}
-        </View>
+        
       </View>
     </KeyboardAvoidingView>
   );
@@ -211,7 +199,5 @@ const themedStyles = (theme: ReturnType<typeof getTheme>) =>
       opacity: 0.6,
     },
     saveText: { color: "#fff", fontWeight: "700" },
-    debugBox: { marginTop: 16, padding: 12, backgroundColor: theme.colors.elevated, borderRadius: 8 },
-    debugTitle: { fontWeight: '700', color: theme.colors.text, marginBottom: 6, fontSize: 12 },
-    debugLine: { fontSize: 11, color: theme.colors.subtext },
+    
   });

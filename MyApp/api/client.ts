@@ -1,25 +1,10 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosInstance } from "axios";
 import { storage } from "../storage";
 import { API_BASE_URL, getClientPlatformHeader, getDeviceInfoHeader } from "../constants";
 import { getAccessTokenFromMemory, clearSession, readSession, setSession } from "../auth/session";
 
 let isRefreshing = false;
 let pendingRequests: Array<(token: string | null) => void> = [];
-
-// Simple in-memory debug store of recent requests
-const recentRequests: Array<{ ts: number; method?: string; url?: string; headers?: any; data?: any }> = [];
-export const getRecentRequests = () => recentRequests.slice(-10);
-
-function snapshotRequest(config: AxiosRequestConfig) {
-  recentRequests.push({
-    ts: Date.now(),
-    method: config.method,
-    url: (config.baseURL || "") + (config.url || ""),
-    headers: config.headers,
-    data: config.data,
-  });
-  if (recentRequests.length > 50) recentRequests.splice(0, recentRequests.length - 50);
-}
 
 const resolvePending = (token: string | null) => {
   pendingRequests.forEach((cb) => cb(token));
@@ -51,7 +36,6 @@ const createClient = (): AxiosInstance => {
       (config.headers as any).Authorization = `Bearer ${accessToken}`;
     }
 
-    snapshotRequest(config);
     return config;
   });
 

@@ -2,8 +2,6 @@ import MasonryList from "@react-native-seoul/masonry-list";
 import Card from "../ui/card";
 import { useCallback } from "react";
 import { useNotes } from "../hooks/useNotes";
-import { getRecentRequests } from "../api/client";
-import { getAccessTokenFromMemory, getSession } from "../auth/session";
 import { useColorScheme, View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -55,27 +53,6 @@ export default function NotesList() {
           <Text style={styles(theme).errorDetails}>
             {error instanceof Error ? error.message : "Unknown error"}
           </Text>
-          {/** Full response JSON (status + data) */}
-          {!!(error as any)?.data && (
-            <View style={styles(theme).jsonWrap}>
-              <Text style={styles(theme).jsonTitle}>Response JSON:</Text>
-              <Text style={styles(theme).jsonBlock}>
-                {JSON.stringify({ status: (error as any)?.status ?? null, data: (error as any)?.data }, null, 2)}
-              </Text>
-            </View>
-          )}
-          {/* Request debug list */}
-          <Text style={styles(theme).jsonTitle}>Recent Requests:</Text>
-          {getRecentRequests().map((r, i) => (
-            <Text key={i} style={styles(theme).jsonBlock}>
-              {JSON.stringify({
-                t: new Date(r.ts).toISOString(),
-                m: r.method,
-                u: r.url,
-                hasAuth: !!(r.headers && (r.headers as any).Authorization),
-              })}
-            </Text>
-          ))}
         </View>
       ) : (
         <MasonryList
@@ -95,14 +72,7 @@ export default function NotesList() {
         />
       )}
 
-      {/* Debug: auth/token state */}
-      {!isLoading && (
-        <View style={styles(theme).debugFooter}>
-          <Text style={styles(theme).debugText}>Auth: {hasToken ? "token-present" : "missing-token"}</Text>
-          <Text style={styles(theme).debugText}>MemToken: {getAccessTokenFromMemory() ? 'set' : 'unset'}</Text>
-          <Text style={styles(theme).debugText}>SessTokenLen: {getSession().accessToken ? getSession().accessToken!.length : 0}</Text>
-        </View>
-      )}
+      
 
       <Pressable
         style={styles(theme).fab}

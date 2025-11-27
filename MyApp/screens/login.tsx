@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Alert, useColorScheme } from "react-native";
 import { Link } from "@react-navigation/native";
 import { useAuth } from "../hooks/useAuth";
-import { getAccessTokenFromMemory, getSession } from "../auth/session";
-import { storage } from "../storage";
 import { getTheme } from "../theme";
 
 export default function LoginScreen() {
@@ -24,11 +22,6 @@ export default function LoginScreen() {
       },
     );
   };
-
-  const memToken = getAccessTokenFromMemory();
-  const sess = getSession();
-  const rawStoredAccess = storage.getString('auth:accessToken');
-  const rawStoredUser = storage.getString('auth:user');
 
   return (
     <View style={styles(theme).container}>
@@ -62,15 +55,6 @@ export default function LoginScreen() {
           <Text>Don't have an account? Register</Text>
         </Link>
       </Pressable>
-      <View style={styles(theme).debugBox}>
-        <Text style={styles(theme).debugTitle}>Debug</Text>
-        <Text style={styles(theme).debugLine}>memToken: {memToken ? 'set' : 'unset'}</Text>
-        <Text style={styles(theme).debugLine}>session.access len: {sess.accessToken ? sess.accessToken.length : 0}</Text>
-        <Text style={styles(theme).debugLine}>user: {sess.user ? sess.user.email : 'none'}</Text>
-        <Text style={styles(theme).debugLine}>loginPending: {String(loginMutation.isPending)}</Text>
-        <Text style={styles(theme).debugLine}>storedAccess len: {rawStoredAccess ? rawStoredAccess.length : 0}</Text>
-        <Text style={styles(theme).debugLine}>storedUser raw: {rawStoredUser ? rawStoredUser.substring(0, 60) + (rawStoredUser.length>60?'…':'') : 'none'}</Text>
-      </View>
     </View>
   );
 }
@@ -101,7 +85,5 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
     },
     buttonText: { color: "#fff", fontWeight: "700" },
     link: { marginTop: 16, color: theme.colors.primary },
-    debugBox: { marginTop: 20, padding: 12, backgroundColor: theme.colors.elevated, borderRadius: 8 },
-    debugTitle: { fontWeight: '700', fontSize: 12, color: theme.colors.text, marginBottom: 6 },
-    debugLine: { fontSize: 11, color: theme.colors.subtext },
+    
   });
