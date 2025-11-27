@@ -1,14 +1,25 @@
-import axios, { AxiosError, AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import { storage } from "../storage";
 import { API_BASE_URL, getClientPlatformHeader, getDeviceInfoHeader } from "../constants";
-import {
-  getAccessTokenFromMemory,
-  clearSession,
-  readSession,
-  setSession,
-} from "../auth/session";
+import { getAccessTokenFromMemory, clearSession, readSession, setSession } from "../auth/session";
 
 let isRefreshing = false;
 let pendingRequests: Array<(token: string | null) => void> = [];
+
+// Simple in-memory debug store of recent requests
+const recentRequests: Array<{ ts: number; method?: string; url?: string; headers?: any; data?: any }> = [];
+export const getRecentRequests = () => recentRequests.slice(-10);
+
+function snapshotRequest(config: AxiosRequestConfig) {
+  recentRequests.push({
+    ts: Date.now(),
+    method: config.method,
+    url: (config.baseURL || "") + (config.url || ""),
+    headers: config.headers,
+    data: config.data,
+  });
+  if (recentRequests.length > 50) recentRequests.splice(0, recentRequests.length - 50);
+}
 
 const resolvePending = (token: string | null) => {
   pendingRequests.forEach((cb) => cb(token));
@@ -31,11 +42,16 @@ const createClient = (): AxiosInstance => {
     (config.headers as any)["x-client-platform"] = getClientPlatformHeader();
     (config.headers as any)["x-device-info"] = getDeviceInfoHeader();
 
-    const accessToken = getAccessTokenFromMemory();
+    let accessToken = getAccessTokenFromMemory();
+    if (!accessToken) {
+      // Fallback: read directly from storage if memory not hydrated yet
+      accessToken = storage.getString("auth:accessToken") ?? null;
+    }
     if (accessToken) {
       (config.headers as any).Authorization = `Bearer ${accessToken}`;
     }
 
+    snapshotRequest(config);
     return config;
   });
 
@@ -127,9 +143,20 @@ export const apiClient = createClient();
 
 function wrapError(error: any): Error {
   const axiosError = error as AxiosError<any>;
-  const backendMessage = axiosError.response?.data?.message;
-  if (backendMessage && typeof backendMessage === "string") {
-    return new Error(backendMessage);
+  const status = axiosError.response?.status;
+  const responseData = axiosError.response?.data;
+  const backendMessage = responseData?.message;
+  const message = backendMessage && typeof backendMessage === "string" ? backendMessage : (error instanceof Error ? error.message : "Request failed");
+  const err = new Error(message);
+  (err as any).status = status ?? null;
+  (err as any).data = responseData ?? null;
+  if (axiosError.config) {
+    (err as any).request = {
+      method: axiosError.config.method,
+      url: (axiosError.config.baseURL || "") + (axiosError.config.url || ""),
+      headers: axiosError.config.headers,
+      data: axiosError.config.data,
+    };
   }
-  return error instanceof Error ? error : new Error("Request failed");
+  return err;
 }

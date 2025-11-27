@@ -25,6 +25,7 @@ export function useAuth() {
         accessToken: res.accessToken,
         refreshToken: res.refreshToken ?? null,
       };
+      console.log('[auth] login success raw:', res);
       setSession(next);
       queryClient.setQueryData(["session"], next);
     },
@@ -38,6 +39,7 @@ export function useAuth() {
         accessToken: res.accessToken,
         refreshToken: res.refreshToken ?? null,
       };
+      console.log('[auth] register success raw:', res);
       setSession(next);
       queryClient.setQueryData(["session"], next);
     },
@@ -74,7 +76,14 @@ export function useAuth() {
 
   const bootRefresh = useCallback(async () => {
     const current = await readSession();
+    // If we have an access token but no refresh token, keep session (don't wipe).
     if (!current.refreshToken) {
+      if (current.accessToken && current.user) {
+        // Preserve existing session; mark as authenticated without refresh capability.
+        queryClient.setQueryData<SessionState>(["session"], current);
+        return;
+      }
+      // No tokens at all: ensure cleared.
       await clearSession();
       queryClient.setQueryData<SessionState>(["session"], {
         user: null,
@@ -93,12 +102,18 @@ export function useAuth() {
       await setSession(next);
       queryClient.setQueryData(["session"], next);
     } catch {
-      await clearSession();
-      queryClient.setQueryData<SessionState>(["session"], {
-        user: null,
-        accessToken: null,
-        refreshToken: null,
-      });
+      // On refresh failure, but existing access token still present, keep it; else clear.
+      const stillValid = current.accessToken && current.user;
+      if (stillValid) {
+        queryClient.setQueryData<SessionState>(["session"], current);
+      } else {
+        await clearSession();
+        queryClient.setQueryData<SessionState>(["session"], {
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+        });
+      }
     }
   }, [queryClient]);
 

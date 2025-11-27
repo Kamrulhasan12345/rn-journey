@@ -47,3 +47,14 @@ export async function createNoteApi(payload: { title: string }): Promise<Note> {
   const data = res.data?.data ?? res.data;
   return mapServerNote(data);
 }
+
+export async function updateNoteTitle(id: string, payload: { title: string }): Promise<Note> {
+  const res = await apiClient.patch(`/api/notes/${id}`, payload);
+  const data = res.data?.data ?? res.data;
+  return mapServerNote(data);
+}
+
+export async function deleteNote(id: string): Promise<{ ok: boolean }> {
+  const res = await apiClient.delete(`/api/notes/${id}`);
+  return { ok: res.status >= 200 && res.status < 300 };
+}

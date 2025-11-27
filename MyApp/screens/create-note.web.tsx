@@ -1,5 +1,5 @@
 // screens/create-note.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
 import { Link } from "@react-navigation/native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createNoteApi } from "../api/notes";
+import { createNoteApi, updateNoteTitle } from "../api/notes";
+import { getRecentRequests } from "../api/client";
 import { getTheme } from "../theme";
 
 
@@ -23,26 +24,65 @@ export default function CreateNote() {
   const styles = useMemo(() => themedStyles(theme), [theme]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [noteId, setNoteId] = useState<string | null>(null);
+  const [hasCreated, setHasCreated] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canSave = title.trim().length > 0;
   const queryClient = useQueryClient();
   const createMutation = useMutation({
     mutationFn: (body: { title: string }) => createNoteApi(body),
-    onSuccess: () => {
+    onSuccess: (note) => {
+      setNoteId(note.id);
+      setHasCreated(true);
+      queryClient.setQueryData(["note", note.id], note);
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
-    onError: () => {
-      Alert.alert("Error", "Failed to save note");
+    onError: (err: any) => {
+      const status = err?.status;
+      const msg = err?.message || "Failed to create note";
+      Alert.alert("Error", `${msg}${status ? ` (code ${status})` : ""}`);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, nextTitle }: { id: string; nextTitle: string }) => updateNoteTitle(id, { title: nextTitle }),
+    onSuccess: (note) => {
+      queryClient.setQueryData(["note", note.id], note);
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+    onError: (err: any) => {
+      const status = err?.status;
+      const msg = err?.message || "Failed to update";
+      Alert.alert("Error", `${msg}${status ? ` (code ${status})` : ""}`);
     },
   });
 
   const onSave = () => {
-    if (!title.trim()) {
-      Alert.alert("Validation", "Title is required");
+    // Web: navigate back via Link; cleanup empty note on next effect
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+
+    if (!hasCreated && !noteId && !createMutation.isPending) {
+      createMutation.mutate({ title: trimmed });
       return;
     }
 
-    createMutation.mutate({ title: title.trim() });
-  };
+    if (noteId) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        updateMutation.mutate({ id: noteId, nextTitle: trimmed });
+      }, 400);
+    }
+  }, [title, hasCreated, noteId, createMutation, updateMutation]);
 
   return (
     <KeyboardAvoidingView
@@ -79,13 +119,24 @@ export default function CreateNote() {
             accessibilityLabel="Save note"
             style={styles.saveButton}
           >
-            <Text style={{...styles.saveText, textAlign: "center"}}>{createMutation.isPending ? "Saving..." : "Save"}</Text>
+            <Text style={styles.saveText}>{createMutation.isPending ? "Saving..." : "Save"}</Text>
           </Link>
         ) : (
           <View style={[styles.saveButton, styles.saveButtonDisabled]}>
             <Text style={styles.saveText}>Save</Text>
           </View>
         )}
+        <View style={styles.debugBox}>
+          <Text style={styles.debugTitle}>Debug</Text>
+          <Text style={styles.debugLine}>noteId: {noteId || 'null'}</Text>
+          <Text style={styles.debugLine}>hasCreated: {String(hasCreated)}</Text>
+          <Text style={styles.debugLine}>createPending: {String(createMutation.isPending)}</Text>
+          <Text style={styles.debugLine}>updatePending: {String(updateMutation.isPending)}</Text>
+          <Text style={styles.debugLine}>lastRequests:</Text>
+          {getRecentRequests().slice(-5).map((r,i)=>(
+            <Text key={i} style={styles.debugLine}>{JSON.stringify({m:r.method,u:r.url,hasAuth:!!(r.headers&&(r.headers as any).Authorization)})}</Text>
+          ))}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -124,4 +175,7 @@ const themedStyles = (theme: ReturnType<typeof getTheme>) =>
       opacity: 0.6,
     },
     saveText: { color: "#fff", fontWeight: "700" },
+    debugBox: { marginTop: 16, padding: 12, backgroundColor: theme.colors.elevated, borderRadius: 8 },
+    debugTitle: { fontWeight: '700', color: theme.colors.text, marginBottom: 6, fontSize: 12 },
+    debugLine: { fontSize: 11, color: theme.colors.subtext },
   });

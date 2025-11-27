@@ -56,7 +56,7 @@ export default function Card({ item, scheme: schemeProp }: { item: Note; scheme?
       accessibilityRole="button"
       accessibilityLabel={`Open note ${item.title}`}
     >
-      <Link screen='NoteDetail' params={{ id: item.id }}>
+      <Link screen='NoteDetail' params={{id: item.id}}>
         <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
         {!!item.contentPreview && (
           <Text style={styles.description} numberOfLines={3} ellipsizeMode="tail">{item.contentPreview}</Text>

@@ -2,6 +2,8 @@ import MasonryList from "@react-native-seoul/masonry-list";
 import Card from "../ui/card";
 import { useCallback } from "react";
 import { useNotes } from "../hooks/useNotes";
+import { getRecentRequests } from "../api/client";
+import { getAccessTokenFromMemory, getSession } from "../auth/session";
 import { useColorScheme, View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { getTheme } from "../theme";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -11,7 +13,7 @@ import { useAuth } from "../hooks/useAuth";
 export default function NotesList() {
   const { session, logoutMutation } = useAuth();
   const hasToken = !!session?.accessToken;
-  const { data: notes = [], isLoading, isError, refetch, isFetching } = useNotes({ enabled: hasToken });
+  const { data: notes = [], isLoading, isError, error, refetch, isFetching } = useNotes({ enabled: hasToken });
   const scheme = useColorScheme();
   const theme = getTheme(scheme);
 
@@ -40,15 +42,40 @@ export default function NotesList() {
       </View>
 
       {isLoading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View style={styles(theme).loadingWrap}>
           <ActivityIndicator />
         </View>
       ) : isError ? (
-        <View style={{ padding: 20 }}>
-          <Text style={{ color: theme.colors.text }}>Failed to load notes.</Text>
+        <View style={styles(theme).errorWrap}>
+          <Text style={styles(theme).errorTitle}>Failed to load notes.</Text>
           <Pressable onPress={() => refetch()}>
-            <Text style={{ color: theme.colors.primary }}>Retry</Text>
+            <Text style={styles(theme).retryText}>Retry</Text>
           </Pressable>
+          <Text style={styles(theme).errorDetailsLabel}>Details:</Text>
+          <Text style={styles(theme).errorDetails}>
+            {error instanceof Error ? error.message : "Unknown error"}
+          </Text>
+          {/** Full response JSON (status + data) */}
+          {!!(error as any)?.data && (
+            <View style={styles(theme).jsonWrap}>
+              <Text style={styles(theme).jsonTitle}>Response JSON:</Text>
+              <Text style={styles(theme).jsonBlock}>
+                {JSON.stringify({ status: (error as any)?.status ?? null, data: (error as any)?.data }, null, 2)}
+              </Text>
+            </View>
+          )}
+          {/* Request debug list */}
+          <Text style={styles(theme).jsonTitle}>Recent Requests:</Text>
+          {getRecentRequests().map((r, i) => (
+            <Text key={i} style={styles(theme).jsonBlock}>
+              {JSON.stringify({
+                t: new Date(r.ts).toISOString(),
+                m: r.method,
+                u: r.url,
+                hasAuth: !!(r.headers && (r.headers as any).Authorization),
+              })}
+            </Text>
+          ))}
         </View>
       ) : (
         <MasonryList
@@ -66,6 +93,15 @@ export default function NotesList() {
           refreshing={isFetching}
           onRefresh={() => refetch()}
         />
+      )}
+
+      {/* Debug: auth/token state */}
+      {!isLoading && (
+        <View style={styles(theme).debugFooter}>
+          <Text style={styles(theme).debugText}>Auth: {hasToken ? "token-present" : "missing-token"}</Text>
+          <Text style={styles(theme).debugText}>MemToken: {getAccessTokenFromMemory() ? 'set' : 'unset'}</Text>
+          <Text style={styles(theme).debugText}>SessTokenLen: {getSession().accessToken ? getSession().accessToken!.length : 0}</Text>
+        </View>
       )}
 
       <Pressable
@@ -157,6 +193,17 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: theme.radius.pill,
     },
     ctaText: { color: "#fff", fontWeight: "600" },
+    errorWrap: { padding: 20 },
+    errorTitle: { color: theme.colors.text, marginBottom: 8 },
+    retryText: { color: theme.colors.primary, marginBottom: 12 },
+    errorDetailsLabel: { color: theme.colors.subtext, fontSize: 12 },
+    errorDetails: { color: theme.colors.subtext, fontSize: 12 },
+    jsonWrap: { marginTop: 8, backgroundColor: theme.colors.elevated, borderRadius: 8, padding: 10 },
+    jsonTitle: { color: theme.colors.subtext, fontSize: 12, marginBottom: 6 },
+    jsonBlock: { color: theme.colors.subtext, fontSize: 12 },
+    loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    debugFooter: { paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm },
+    debugText: { color: theme.colors.subtext, fontSize: 12 },
     fab: {
       position: "absolute",
       right: 20,
