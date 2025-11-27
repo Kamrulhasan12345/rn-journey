@@ -68,6 +68,16 @@ export default function NotesList() {
           <Ionicons name="add" size={28} color="#fff" />
         </Link>
       </Pressable>
+
+      <Pressable
+        style={styles(theme).fabSecondary}
+        accessibilityRole="button"
+        accessibilityLabel="Open journal editor"
+      >
+        <Link screen='JournalEditor' params={{}}>
+          <Ionicons name="create" size={22} color="#fff" />
+        </Link>
+      </Pressable>
     </View>
   );
 }
@@ -157,6 +167,22 @@ const styles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 28,
       alignItems: "center",
       justifyContent: "center",
+      backgroundColor: theme.colors.primary,
+      shadowColor: theme.shadow.shadowColor,
+      shadowOpacity: theme.shadow.shadowOpacity,
+      shadowRadius: theme.shadow.shadowRadius,
+      shadowOffset: theme.shadow.shadowOffset,
+      elevation: theme.shadow.elevation,
+    },
+    fabSecondary: {
+      position: 'absolute',
+      right: 90,
+      bottom: 30,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.colors.primary,
       shadowColor: theme.shadow.shadowColor,
       shadowOpacity: theme.shadow.shadowOpacity,

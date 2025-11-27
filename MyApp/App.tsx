@@ -6,6 +6,7 @@ import { createNativeStackNavigator, NativeStackScreenProps } from '@react-navig
 import NotesList from './screens/notes-list';
 import NoteDetails from './screens/note-details';
 import CreateNote from './screens/create-note';
+import JournalEditor from './screens/journal-editor';
 import LoginScreen from './screens/login';
 import RegisterScreen from './screens/register';
 import { useAuth } from './hooks/useAuth';
@@ -18,6 +19,7 @@ type RootStackParamList = {
   Notes: undefined;
   NoteDetail: { id: string }
   CreateNote: undefined
+  JournalEditor: undefined
 };
 
 type NoteDetailProps = NativeStackScreenProps<RootStackParamList, 'NoteDetail'>;
@@ -68,6 +70,7 @@ function RootNavigator() {
           <Stack.Screen name='CreateNote' component={CreateNote} options={{
             title: 'Create Note'
           }} />
+          <Stack.Screen name='JournalEditor' component={JournalEditor} options={{ title: 'Journal' }} />
         </>
       ) : (
         <>
