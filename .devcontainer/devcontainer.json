@@ -6,5 +6,5 @@
       "version": "latest"
     }
   },
-  "postCreateCommand": "echo 'export PATH=$PATH:/usr/local/lib/android/platform-tools && export GRADLE_USER_HOME=/workspaces && export GRADLE_HOME=/workspaces' >> ~/.bashrc"
+  "postCreateCommand": "echo 'export PATH=$PATH:/usr/local/lib/android/platform-tools && export GRADLE_USER_HOME=/workspaces/.gradle && export GRADLE_HOME=/workspaces/.gradle && export EDGE_PATH=$PWD/browser.sh' >> ~/.bashrc"
 }
